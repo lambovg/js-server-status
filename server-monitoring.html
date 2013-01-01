@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+ <head>
+	<!-- possibility to give server alias -->
+	
+	<title>Server Monitoring</title>
+	<style type="text/css">
+		body {
+			overflow: hidden;
+			padding: 0;
+			margin: 0;
+		}
+
+		iframe {
+			float: left;
+			padding: 0px 12px 0px 12px;
+			display: none;
+			margin: 0;
+			border: 0
+		}
+
+		iframe#de-server {
+
+		}
+
+		.frameOverlay {
+			display: table;
+			text-align: center
+		}
+
+		.frameOverlay p {
+			border: 1px solid red;
+			vertical-align: middle;
+			letter-spacing: 10px;
+			text-transform: capitalize;
+			margin: 0 auto;
+			font-size: 58px;
+			text-shadow: 2px 2px 2px #000;
+			opacity: 0.4;
+			filter: alpha(opacity=40);
+			font-weight: bold;
+			color: #80FF00;
+			display: table-cell
+		}
+
+		div {
+			min-width: 200px;
+			z-index: 1
+		}
+
+		small {
+			z-index: 2;
+			color: #000;
+			padding: 3px
+		}
+
+		div, small {
+			line-height: 20px;
+			min-height: 25px;
+			font-size: 13px;			
+			position: absolute
+		}
+
+		#notify {
+			display: none;
+		}
+
+		#notificationBar {
+			z-index: 1;
+			background: lightgreen;
+			opacity: 0.4;
+			filter: alpha(opacity=40)
+		}
+			
+	</style>
+
+	<script type="text/javascript">
+		var config = {
+			servers : {
+					 
+			},
+
+			reload : {
+				enable : true,
+				interval : 10000
+			}			
+		};
+
+		var serverFrames = {
+			"servers" : [],
+
+			"init" : function() {
+				this.loadServers();
+			},
+		
+			"loadServers" : function() {
+				var i = 0;
+				for(var server in config.servers) {
+					var frame = document.createElement('iframe');
+					frame.setAttribute("src", config.servers[server]);
+					frame.setAttribute("scrolling", "yes");
+					frame.setAttribute("border", 0);
+					frame.setAttribute("seamless", "seamless");
+					frame.setAttribute("name", server);
+					frame.setAttribute("id", "server-" + i);
+					frame.setAttribute("rel", i);
+					this.servers.push(frame);
+
+					i++;
+				}
+
+			},
+
+			"dimensions" : function(reportFrameSize) {
+				for(var i in this.servers) {
+					var frame = this.servers[i];
+					var el = document.getElementById(frame.id);
+					
+					el.style.width = reportFrameSize.width();
+					el.style.height = reportFrameSize.height();
+					el.style.display = "block";
+				}
+			},
+			
+			"reload" : function() {
+				for(var i in this.servers) {
+					var frame = this.servers[i];
+					var el = document.getElementById(frame.id);
+					el.src = el.src;
+				}
+			},
+			
+			"overlayClicks" : 0
+		};
+		serverFrames.init();
+		console.log(serverFrames.servers);
+
+		var serverFrameOverlay = {
+			"dimensions" : function(reportFrameSize) {
+
+				console.log("server overlay dimensions");
+			}	
+		};
+
+		window.addEventListener('load', function(){
+			if(config.reload.enable) {
+				var frameReload = setInterval(function() {
+					serverFrames.reload();
+				}, config.reload.interval);
+			}
+			
+			var reportFrameSize = {
+				width : function() {
+					return (parseInt(this.windowWidth, "px") / serverFrames.servers.length) - 30 + "px";
+				},
+
+				height : function() {
+					return Math.floor(parseInt(this.windowHeight, "px")) - 10 + "px";
+				},
+
+				windowWidth : window.innerWidth + "px",
+				windowHeight : window.innerHeight + "px",
+			};
+
+			// set proper dimmensions
+			serverFrames.dimensions(reportFrameSize);
+			serverFrameOverlay.dimensions(reportFrameSize);
+		}, false);
+		
+		
+		var notification = {};
+		var loadedServers = [];
+		
+		function isAllServersLoaded() {
+			return (loadedServers.length == serverFrames.servers.length);
+		}
+		
+		function benchLoadtime() {
+			return (new Date().getTime() - readyTime) / 1000;
+		}
+	
+		function handleNotify() {
+			var m = "";
+			
+			for (n in notification) {
+				m += notification[n];
+			}
+			
+			return m;
+		}
+
+		var checkState = setInterval(function(){				
+			console.log(notification);
+			
+			clearInterval(checkState);
+			document.getElementById("notify").style.display = "block";
+			document.getElementById("notification").innerHTML = handleNotify();
+		},1000);
+		
+		/*
+		var showNotify = setInterval(function() {
+			//console.log(notification);
+			//console.log("Loaded servers: " + isAllServersLoaded());
+	
+			//FIXME readyTime should be calcualted time of page start - time in frame loaded
+			//because now frame load time is incorrect after reload
+			//correct is only first time loading
+			readyTime = new Date().getTime();
+			
+			if(isAllServersLoaded() == true) {
+				document.getElementById("notification").innerHTML = handleNotify();
+			}
+			
+			loadedServers = [];
+		}, config.servers.interval + 1000);
+		*/
+		
+		//TODO readyTime fix
+		function track(){
+			setTimeout("track()",1000);
+			now = new Date();
+			readyTime = now.getTime();
+			timeOnPage = now.getHours() + ":" + now.getMinutes() + ":" + now.getSeconds();
+			console.log(timeOnPage);
+		}
+		
+		track();
+	
+		var readyTime = new Date().getTime();
+	</script>
+ </head>
+ <body>
+	<div id="notify">
+		<small id="notification"></small>
+		<div id="notificationBar"></div>
+	</div>
+
+	<script type="text/javascript">//<![CDATA[
+		for(var i in serverFrames.servers) {
+			var frame = serverFrames.servers[i];
+			document.body.appendChild(frame);
+		
+			document.getElementById(frame.id).onload = function() {
+				console.log(this.name + " server logged");
+				notification[this.id] = this.name + ": " + benchLoadtime() + "sec, ";
+				loadedServers[i] = this.id;
+				
+				//this.style.width = reportFrameSize.width();
+				//this.style.height = reportFrameSize.height();
+				
+				//TODO reoder frames by time of execution
+			};
+
+			var overlay = document.createElement("div");
+			overlay.setAttribute("id", "overlay-" + i);
+			overlay.setAttribute("class", "frameOverlay");
+			overlay.setAttribute("rel", frame.id);
+			//overlay.style.width = reportFrameSize.width();
+			//overlay.style.height = reportFrameSize.height();
+			overlay.style.border = "1px solid red";
+			overlay.style.zIndex = 4;
+			//overlay.style.marginLeft = (i * parseInt(reportFrameSize.width(), "px")) + "px";
+			document.body.appendChild(overlay);	
+
+			// enable copy and paste through layer
+			/*
+			overlay.addEventListener("click", function(e) {
+				serverFrames.overlayClicks++;
+				var pureId = this.id.substr(this.id.indexOf("-")+1);
+				var selectedServerFrame = document.getElementById("server-" + pureId);
+
+				console.log("Clicked server frame " + "server-" + pureId);
+				console.log("Overlay clicks " + serverFrames.overlayClicks);
+
+				if (serverFrames.overlayClicks % 2 == 0) {
+					selectedServerFrame.style.width = reportFrameSize.width();
+					selectedServerFrame.style.height = reportFrameSize.height();
+					console.log("restore size " + selectedServerFrame.style.width);
+
+					this.style.marginLeft = (pureId * parseInt(reportFrameSize.width(), "px")) + "px";
+					console.log("Restore overlay " + this.id + " size " + this.style.marginLeft);
+					this.style.width = reportFrameSize.width();
+					this.style.height = reportFrameSize.height();
+				} else {
+					selectedServerFrame.style.width = reportFrameSize.windowWidth;
+					selectedServerFrame.style.height = reportFrameSize.windowHeight;
+					console.log("full size " + selectedServerFrame.style.width);
+
+					this.style.marginLeft = 0;
+					this.style.width = reportFrameSize.windowWidth;
+					this.style.height = reportFrameSize.windowHeight;
+				}
+
+				// hide / show rest elements of the frames from the scene
+				for(var i in serverFrames.servers) {
+					var frame = serverFrames.servers[i];
+
+					if(frame.id != "server-" + pureId) {
+						if (serverFrames.overlayClicks % 2 == 0) {
+							frame.style.display = "block";
+							document.getElementById("overlay-" + frame.getAttribute("rel")).style.display = "block";
+						} else {
+							frame.style.display = "none";
+							document.getElementById("overlay-" + frame.getAttribute("rel")).style.display = "none";
+						}
+					}
+				}
+			});
+
+			overlay.addEventListener("mouseover", function(e) {
+					//this.innerHTML = "<p>asdfasfd</p>";
+			});
+			*/
+		}
+	//]]></script>
+	
+ </body>
+</html>
